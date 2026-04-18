@@ -72,4 +72,4 @@ steps:
         docker stop my-app || true
         docker rm my-app || true
         docker run -d -p 8000:8000 --name my-app achin43/rep:latest
-```
+
