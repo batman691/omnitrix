@@ -8,7 +8,6 @@ jobs:
 build-and-deploy:
 runs-on: ubuntu-latest
 
-```
 steps:
 - name: Checkout code
   uses: actions/checkout@v4
@@ -45,4 +44,3 @@ steps:
       docker stop my-app || true
       docker rm my-app || true
       docker run -d -p 8000:8000 --name my-app achin43/rep:latest
-```
