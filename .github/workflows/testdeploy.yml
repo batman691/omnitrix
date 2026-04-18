@@ -1,74 +1,72 @@
 name: CI-CD
 
 on:
-push:
-branches:
-- main
-workflow_dispatch:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
-test:
-runs-on: ubuntu-latest
+  test:
+    runs-on: ubuntu-latest
 
-steps:
-  - uses: actions/checkout@v4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
 
-  - uses: docker/setup-buildx-action@v3
+      - name: Build image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: fastapi-test:latest
+          platforms: linux/amd64
 
-  - name: Build image
-    uses: docker/build-push-action@v5
-    with:
-      context: .
-      push: false
-      load: true
-      tags: fastapi-test:latest
-      platforms: linux/amd64
+      - name: Run container
+        run: docker run -d -p 8000:8000 --name test-app fastapi-test:latest
 
-  - name: Run container
-    run: docker run -d -p 8000:8000 --name test-app fastapi-test:latest
+      - name: Wait
+        run: sleep 5
 
-  - name: Wait
-    run: sleep 5
+      - name: Test API
+        run: curl -f http://localhost:8000/docs
 
-  - name: Test API
-    run: curl -f http://localhost:8000/docs
+      - name: Cleanup
+        run: |
+          docker stop test-app
+          docker rm test-app
 
-  - name: Cleanup
-    run: |
-      docker stop test-app
-      docker rm test-app
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
 
-deploy:
-needs: test
-runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
 
-steps:
-  - uses: actions/checkout@v4
+      - name: Login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-  - uses: docker/setup-buildx-action@v3
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: achin43/rep:latest
+          platforms: linux/amd64
 
-  - name: Login to Docker Hub
-    uses: docker/login-action@v3
-    with:
-      username: ${{ secrets.DOCKER_USERNAME }}
-      password: ${{ secrets.DOCKER_PASSWORD }}
-
-  - name: Build and push
-    uses: docker/build-push-action@v5
-    with:
-      context: .
-      push: true
-      tags: achin43/rep:latest
-      platforms: linux/amd64
-
-  - name: Deploy to VM
-    uses: appleboy/ssh-action@v1.0.3
-    with:
-      host: ${{ secrets.VM_HOST }}
-      username: ${{ secrets.VM_USER }}
-      key: ${{ secrets.VM_SSH_KEY }}
-      script: |
-        docker pull achin43/rep:latest
-        docker stop my-app || true
-        docker rm my-app || true
-        docker run -d -p 8000:8000 --name my-app achin43/rep:latest
+      - name: Deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            docker pull achin43/rep:latest
+            docker stop my-app || true
+            docker rm my-app || true
+            docker run -d -p 8000:8000 --name my-app achin43/rep:latest
