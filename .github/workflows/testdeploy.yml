@@ -10,7 +10,6 @@ jobs:
 test:
 runs-on: ubuntu-latest
 
-```
 steps:
   - uses: actions/checkout@v4
 
@@ -38,13 +37,11 @@ steps:
     run: |
       docker stop test-app
       docker rm test-app
-```
 
 deploy:
 needs: test
 runs-on: ubuntu-latest
 
-```
 steps:
   - uses: actions/checkout@v4
 
